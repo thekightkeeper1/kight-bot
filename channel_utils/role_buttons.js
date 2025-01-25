@@ -51,12 +51,31 @@ class RoleButtons {
     }
 
     static async execute(interaction) {
-        if (!interaction.isButton()) return;
-        const role = interaction.guild.roles.cache.get(Number(interaction.customId));
-        console.log(interaction.guild.roles.cache)
+        if (!interaction.isButton()) return; // TODO do i need this?
+        const role = await interaction.guild.roles.fetch(interaction.customId);
         if (!role) {
+            console.log(role);
             interaction.editReply({
                 content: "I couldn't find any role.",
+            })
+        } else {
+            const member = await interaction.guild.members.fetch(interaction.member.id);
+            const hasRole = member.roles;
+
+
+            if (hasRole) {
+                await interaction.member.roles.remove(role);
+                interaction.editReply({
+                    content: `${role.name} removed.`,
+                })
+            } else {
+                await interaction.member.roles.add(role);
+                interaction.editReply({
+                    content: `${role.name} added.`,
+                })
+            }
+            interaction.editReply({
+                content: "idk how we got here"
             })
         }
     }
