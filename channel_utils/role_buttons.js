@@ -2,10 +2,10 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Interaction} = require ('d
 
 const roles = [
     {
-        id: '1328808481662435338',
+        id: '1328808707689152573',
         label: "pink"
     },{
-        id: '1328808707689152573',
+        id: '1328808481662435338',
         label: "green"
     },{
         id: '1328808733706293419',
@@ -52,7 +52,7 @@ class RoleButtons {
 
     static async execute(interaction) {
         if (!interaction.isButton()) return; // TODO do i need this?
-        const role = await interaction.guild.roles.fetch(interaction.customId);
+        const role = interaction.guild.roles.cache.get(interaction.customId);
         if (!role) {
             console.log(role);
             interaction.editReply({
@@ -60,7 +60,7 @@ class RoleButtons {
             })
         } else {
             const member = await interaction.guild.members.fetch(interaction.member.id);
-            const hasRole = member.roles;
+            const hasRole = member.roles.cache.has(role.id);
 
 
             if (hasRole) {
@@ -74,9 +74,6 @@ class RoleButtons {
                     content: `${role.name} added.`,
                 })
             }
-            interaction.editReply({
-                content: "idk how we got here"
-            })
         }
     }
 }

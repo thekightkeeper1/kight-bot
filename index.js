@@ -17,6 +17,7 @@ const rest = new REST({version: "10"}).setToken(process.env.DISCORD_TOKEN);
 const client = new Client({
     intents: [
         IntentsBitField.Flags.GuildMessages,
+        IntentsBitField.Flags.Guilds,
         // IntentsBitField.Flags.GuildChannels
     ]
 })
@@ -55,7 +56,8 @@ client.on('interactionCreate', async (interaction) =>  {
         await interaction.deferReply({ephemeral: true});
 
         if (RoleButtons.isThis(interaction.customId)) {
-            RoleButtons.execute(interaction);
+            const role = interaction.guild.roles.cache.get(interaction.customId);
+            await RoleButtons.execute(interaction);
         }
 
     }
@@ -111,5 +113,4 @@ function optionsGenerator() {
     }
     return options;
 }
-
 
