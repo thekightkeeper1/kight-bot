@@ -48,9 +48,8 @@ for (const folder of commandFolders) {
 
 const buttons = new RoleButtons(client);
 
-client.once('ready', () => {
+client.once(Events.ClientReady, () => {
     console.log('Ready!');
-    buttons.makeButtons();
 })
 
 // Role button interactions
