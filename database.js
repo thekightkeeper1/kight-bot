@@ -1,5 +1,15 @@
 const fs = require('fs');
 
+const data = {
+    roleButtons: {
+        channels: [
+            {
+                "1328810772016533534": 1,
+            }
+        ]
+    }
+}
+
 class Database {
     constructor () {
         /* todo
@@ -9,5 +19,4 @@ class Database {
         * */
     }
 
-    write
 }

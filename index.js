@@ -1,116 +1,91 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const {
     Client,
-    IntentsBitField,
     REST,
-    ApplicationCommandOptionType,
-    Routes,
-    StringSelectMenuOptionBuilder,
-    StringSelectMenuBuilder,
-    ActionRowBuilder,
-    PermissionFlagsBits,
+    Collection,
+    IntentsBitField,
+    Events
 } = require('discord.js');
+
 const {RoleButtons} = require('./channel_utils/role_buttons');
-const {ping} = require("./ping");
+const {InteractionCreate} = require("node:events");
 const rest = new REST({version: "10"}).setToken(process.env.DISCORD_TOKEN);
 
 const client = new Client({
     intents: [
-        IntentsBitField.Flags.GuildMessages,
         IntentsBitField.Flags.Guilds,
+        IntentsBitField.Flags.GuildMessages,
+        IntentsBitField.Flags.MessageContent,
+
         // IntentsBitField.Flags.GuildChannels
     ]
-})
+});
+client.commands = new Collection();
+
+/*
+* Getting the commands
+* */
+
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
+
+for (const folder of commandFolders) {
+    const commandsPath = path.join(foldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'))
+    for (const file of commandFiles) {
+        const filePath = path.join(commandsPath, file);
+        const command = require(filePath);
+
+        if ('data' in command && 'execute' in command) {
+            client.commands.set(command.data.name, command);
+        } else {
+            throw Error(`Command ${file} missing required "data" or "execute" property`);
+        }
+    }
+}
 
 const buttons = new RoleButtons(client);
 
-client.on('ready', () => {
+client.once('ready', () => {
     console.log('Ready!');
     buttons.makeButtons();
 })
 
-client.on('interactionCreate', async (interaction) =>  {
-    if (interaction.isCommand()) {
-        switch (interaction.commandName) {
-            case 'ping':
-                interaction.reply({content: "Pong!"});
-                break;
-            case 'dropdown':
-                const select = new StringSelectMenuBuilder()
-                    .setCustomId('tmp')
-                    .setPlaceholder('Category Name')
-                    .addOptions(...optionsGenerator());
-                const row = new ActionRowBuilder()
-                    .addComponents(select);
-
-
-                interaction.reply({
-                    content: 'This is the message?',
-                    components: [row],
-                })
-                break;
-            default:
-                break;
-        }
-    } else if (interaction.isButton()) {
+// Role button interactions
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (interaction.isButton()) {
         await interaction.deferReply({ephemeral: true});
-
         if (RoleButtons.isThis(interaction.customId)) {
             const role = interaction.guild.roles.cache.get(interaction.customId);
             await RoleButtons.execute(interaction);
         }
+    }
+})
 
+// Handling slash commands
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    const command = interaction.client.commands.get(interaction.commandName);
+    if (!command) {
+        console.error(`No command matching ${interaction.commandName} was found`)
+        return;
+    }
+
+    try {
+        await command.execute(interaction);
+    } catch (error) {
+        console.error(error);
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
+        } else {
+            await interaction.reply({ content: 'There was an error while executing this command!', flags: MessageFlags.Ephemeral });
+        }
     }
 })
 
 
-/* Registering Commands */
-const commands = [
-    ping,
-
-    {
-        name: 'dropdown_help',
-        description: 'Sends you an example of how to use drop down formatting',
-    },
-    {
-        name: 'admin_only',
-        description: 'Can only be used by admins',
-        defaultMemberPermissions: 0,
-
-    }
-
-]
-
-
-async function registerCommands() {
-    try {
-        console.log('Registering commands');
-
-        await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-            {body: commands}
-        )
-        console.log("Commands registered without error.");
-    } catch (error) {
-        console.log(`Error when registering commands. Check command naming convention and/or the tokens: ${error}`);
-    }
-}
-
-registerCommands();
-
 client.login(process.env.DISCORD_TOKEN);
 
-
-function optionsGenerator() {
-    let options = []
-    for (let i = 0; i < 3; i++) {
-        options.push(
-            new StringSelectMenuOptionBuilder()
-                .setLabel(`opt${i}`)
-                .setDescription('This is the second option')
-                .setValue(i.toString())
-        )
-    }
-    return options;
-}
 
