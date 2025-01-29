@@ -16,8 +16,8 @@ const ping = {
 module.exports = {
     data:
         new SlashCommandBuilder()
-            .name('ping')
-            .description('Replies with pong!')
+            .setName('ping')
+            .setDescription('Replies with pong!')
             .addIntegerOption(option =>
                 option.setName('num_pings')
                     .setName('Number of time to send pong')

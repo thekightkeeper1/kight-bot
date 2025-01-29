@@ -6,7 +6,10 @@ module.exports = {
         .setDescription('Make buttons or dropdowns to let users assign roles')
         .addStringOption(new SlashCommandStringOption()
             .setRequired(true)
-            .addChoices(["buttons", "dropdowns"])),
+            .addChoices(
+        {name: "Buttons", value: "button"},
+                {name: "Dropdowns", value: "dropdown"},
+            )),
     execute: async (interaction) => {
         interaction.reply("Heard.");
     }
