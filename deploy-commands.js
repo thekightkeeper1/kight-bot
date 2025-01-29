@@ -1,6 +1,8 @@
 require('dotenv').config();
+
 const fs = require('node:fs');
 const path = require('node:path');
+const {REST, Routes} = require("discord.js");
 
 const commands = [];
 const foldersPath = path.join(__dirname, 'commands');
@@ -25,7 +27,7 @@ for (const folder of commandFolders) {
 }
 
 // Uploading
-const rest = new REST().setToken(process.env.token);
+const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 (async () => {
     try {
         console.log(`Started refreshing ${commands.length} application (/) commands.`);

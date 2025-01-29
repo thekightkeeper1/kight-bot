@@ -20,7 +20,7 @@ module.exports = {
             .setDescription('Replies with pong!')
             .addIntegerOption(option =>
                 option.setName('num_pings')
-                    .setName('Number of time to send pong')
+                    .setDescription('Number of time to send pong')
             )
     ,
     execute: (interaction) => {
