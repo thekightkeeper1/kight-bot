@@ -24,6 +24,8 @@ module.exports = {
             )
     ,
     execute: (interaction) => {
-        interaction.reply('Pong!');
+        let numPings = interaction.options.getInteger("num_pings") - 1;
+        if (!numPings) numPings = 0;
+        interaction.reply('Pong!' + "\nPong!".repeat(numPings));
     }
 };
