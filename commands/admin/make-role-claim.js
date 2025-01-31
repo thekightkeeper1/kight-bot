@@ -27,27 +27,29 @@ module.exports = {
         let templateJSON;
 
         // Catching errors with json and maybe something wrong with fetching the attachment
-        const templateText = await getTextAttachment(url);
-        try {
-            templateJSON = JSON.parse(templateText);
-        } catch (error) {
-            if (error instanceof SyntaxError)  {
-                interaction.editReply("The JSON was not valid JSON format.");
-            } else throw error;
-            return;
-        }
+        const listOfRoles = (await getTextAttachment(url)).split(',');
+        let roleNotExist = false;
 
-        const messageComponents = makeActionRows(templateJSON);
-        if (!messageComponents) {
-            interaction.editReply("Something went wrong trying to make buttons. Make sure you gave me a list of comma-separated roles.")
+        // Verifying the roles all exist
+        const roles = [];
+        for (const roleName of listOfRoles) {
+            roles.push(await interaction.guild.roles.cache.find(r => r.name === roleName));
+            // todo how to send multiple ephemeral messages
+            if (!roles.at(-1)) {interaction.editReply(`The role ${roleName} does not exist.`); roleNotExist = true;}
         }
-        interaction.editReply("Done!");
+        if (roleNotExist) return;
+
+        const messageComponents = makeActionRows(roles);
+        if (!messageComponents) {
+            interaction.editReply("Something went wrong trying to make buttons. Make sure you gave me a list of comma-separated names")
+        }
+        interaction.editReply({content: "Here you go", components: messageComponents});
 
     }
 }
 
 function makeActionRows(listOfRoles) {
-    interactionComponents = [
+    const interactionComponents = [
     ]
     let i = 0;
     while (i < listOfRoles.length) {
@@ -61,9 +63,9 @@ function makeActionRows(listOfRoles) {
             interactionComponents.at(-1).components.push(
                 {
                     "type": 2,
-                    "label": listOfRoles[i],
+                    "label": listOfRoles[i].name,
                     "style": 2,
-                    "custom_id": "make-role-claim"
+                    "custom_id": `make-role-claim%${listOfRoles[i].id}`,
                 }
             );
             i++
