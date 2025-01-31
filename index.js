@@ -59,7 +59,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (RoleButtons.isThis(interaction.customId)) {
             const role = interaction.guild.roles.cache.get(interaction.customId);
             await RoleButtons.execute(interaction);
+            return;
         }
+        await interaction.editReply("I haven't implemented this yet lol.");
     }
 })
 
