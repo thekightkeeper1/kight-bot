@@ -1,23 +1,23 @@
-const { https } = require('https');
-// const fetch = require('node-fetch');
-const { replyOrEdit } = require('./utils.js');
+const https = require('node:https');
 module.exports = {
-    getTextAttachment: async (interaction, url) => {
-        try {
-            // fetch the file from the external URL
-            const response = await https.get(url);
-            console.log(response);
+    // todo how to make timeouts
+    getTextAttachment: (url) => {
 
-            // If there was an error send a message with the status
-            replyOrEdit(interaction, "Failed to fetch the attachment.");
-
-            // take the response stream and read it to completion
-            const text = await response.text();
-            console.log(text);
-        } catch (error) {
-            console.error(error);
-            return "error";
+        return new Promise((resolve, reject) => {
+            https.get(url, (res) => {
+                let data = '';
+                res.on('data', (chunk) => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    resolve(data)
+                });
+            }).on('error', (err) => {
+                reject(err)
+            });
+        })
         }
-    }
 
 }
+
+

@@ -1,6 +1,6 @@
-const {SlashCommandBuilder, ActionRowBuilder} = require('discord.js');
+const {SlashCommandBuilder} = require('discord.js');
 const {getTextAttachment} = require('../../attachments.js');
-const https = require('https');
+
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,33 +24,25 @@ module.exports = {
     execute: async (interaction) => {
         interaction.deferReply();
         const url = interaction.options.getAttachment("template").url;
-        console.log(url);
-        const templateText = await new Promise((resolve, reject) => {
-            https.get(url, (res) => {
-                let data = '';
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-                res.on('end', () => {
-                    resolve(data)
-                });
-            }).on('error', (err) => {
-                reject(err)
-            });
-        })
-        console.log(templateText);
-        if (templateText === "error") return;  // TODO Replying to error is handled by getTextAttachment
+        let templateJSON;
+
+        // Catching errors with json and maybe something wrong with fetching the attachment
+        const templateText = await getTextAttachment(url);
         try {
-            const templateJSON = JSON.parse(templateText);
-            interaction.editReply({
-                content: "hi"
-            })
+            templateJSON = JSON.parse(templateText);
         } catch (error) {
-            console.log(error);
-            interaction.editReply("The json was not valid.");
+            if (error instanceof SyntaxError)  {
+                interaction.editReply("The JSON was not valid JSON format.");
+            } else throw error;
             return;
         }
+
+        const messageComponents = makeActionRows(templateJSON);
+        if (!messageComponents) {
+            interaction.editReply("Something went wrong trying to make buttons. Make sure you gave me a list of comma-separated roles.")
+        }
         interaction.editReply("Done!");
+
     }
 }
 
@@ -78,4 +70,3 @@ function makeActionRows(listOfRoles) {
     }
     return interactionComponents;
 }
-
