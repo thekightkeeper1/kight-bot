@@ -1,4 +1,4 @@
-const {SlashCommandBuilder} = require('discord.js');
+const {SlashCommandBuilder, ActionRowBuilder} = require('discord.js');
 const {getTextAttachment} = require('../../attachments.js');
 const https = require('https');
 
@@ -39,30 +39,43 @@ module.exports = {
             });
         })
         console.log(templateText);
-        return;
         if (templateText === "error") return;  // TODO Replying to error is handled by getTextAttachment
         try {
             const templateJSON = JSON.parse(templateText);
-            if (!validateTemplate(templateJSON)) {
-                interaction.reply("There was an error in the fields");
-                return;
-            }
+            interaction.editReply({
+                content: "hi"
+            })
         } catch (error) {
             console.log(error);
-            interaction.reply("The json was not valid.");
+            interaction.editReply("The json was not valid.");
             return;
         }
-        interaction.reply("Done!");
-        console.log("test");
+        interaction.editReply("Done!");
     }
 }
 
-function validateTemplate(json) {
-
-     for (let item of json) {
-         if (item.name.includes(' ')) {
-
-         }
-     }
-     return json;
+function makeActionRows(listOfRoles) {
+    interactionComponents = [
+    ]
+    let i = 0;
+    while (i < listOfRoles.length) {
+            if (i >= listOfRoles.length) break;
+            if (i % 5 === 0) {
+                interactionComponents.push({
+                    "type": 1,
+                    "components": []}
+                );
+            }
+            interactionComponents.at(-1).components.push(
+                {
+                    "type": 2,
+                    "label": listOfRoles[i],
+                    "style": 2,
+                    "custom_id": "make-role-claim"
+                }
+            );
+            i++
+    }
+    return interactionComponents;
 }
+
