@@ -1,4 +1,9 @@
-const {SlashCommandBuilder} = require('discord.js');
+const {
+    SlashCommandBuilder,
+    ActionRowBuilder,
+    StringSelectMenuOptionBuilder,
+    StringSelectMenuBuilder
+} = require('discord.js');
 const {getTextAttachment} = require('../../attachments.js');
 
 
@@ -22,10 +27,13 @@ module.exports = {
                 .setRequired(true)
         ),
     execute: async (interaction) => {
-        interaction.deferReply();
+        await interaction.deferReply();
         const url = interaction.options.getAttachment("template").url;
 
-        // Catching errors with json and maybe something wrong with fetching the attachment
+        if (interaction.options.getString('type') === 'dropdown') {
+            await makeDropdowns(interaction);
+            return;
+        }
         const listOfRoles = (await getTextAttachment(url)).split(',');
         let roleNotExist = false;
 
@@ -71,3 +79,57 @@ function makeActionRows(listOfRoles) {
     }
     return interactionComponents;
 }
+
+function makeButtons(interaction) {}
+async function makeDropdowns(interaction) {
+    const url = interaction.options.getAttachment("template").url;
+    const fileLines = (await getTextAttachment(url)).split('\n');
+    const categories = [];
+
+    /* Formatting the json to build categories from */
+    // This snippet gets the placeholder, and puts a list of the options into there
+    for (let i = 0; i <     fileLines.length; i++) {
+
+        // Gets the names of the roles sanitized
+        let rolesNames = fileLines[i].split(',').map(e => e.trim());
+
+        // Gets the name of the category, slices the list of roles so it doesn't include the category name
+        const categoryName =  rolesNames[0];
+        rolesNames = rolesNames.slice(1);
+
+        // Retrieves roles from the cache, or exists if they do not exist.
+        const rolesCached = [];
+        for (let roleName of rolesNames) {
+            rolesCached.push(interaction.guild.roles.cache.find(r => r.name === roleName));
+            // Verify they exist
+            if (!rolesCached.at(-1)) {
+                await interaction.editReply(`The role ${roleName} does not exist.`);
+                return;
+            }
+        }
+
+        const row = new ActionRowBuilder();
+        let componentIdNumber = 0;
+        row.addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`make-role-claim%${interaction.user.id}%${componentIdNumber++}`)
+                .setOptions(rolesCached.map(r => new StringSelectMenuOptionBuilder()
+                    .setLabel(r.name)
+                    .setValue(r.id)
+                )
+            )
+        )
+        categories.push(row.toJSON());
+    }
+
+
+    const foo = new ActionRowBuilder();
+    // Adding the dropdowns to the message
+    console.log(JSON.stringify(categories));
+    interaction.editReply({
+        // components: categories.map(e => JSON.stringify(e)),
+        components: categories,
+        content: "Hopefully this works",
+    })
+}
+
