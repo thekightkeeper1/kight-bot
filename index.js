@@ -80,6 +80,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 })
 
+// Handling select menus.
+
 
 client.login(process.env.DISCORD_TOKEN);
 

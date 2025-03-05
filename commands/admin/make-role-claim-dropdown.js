@@ -8,7 +8,7 @@ const {
 const {getTextAttachment} = require('../../attachments.js');
 const fs = require("node:fs");
 const path = require("node:path");
-const { v4: uuidv4 } = require('uuid');
+const {v4: uuidv4} = require('uuid');
 
 
 module.exports = {
@@ -60,9 +60,10 @@ module.exports = {
             * multiselect_t/f,category2,opt1,opt2
             * */
         }
-       /* Loading the template file*/
+        /* Loading the template file*/
         if (!templateText) { // If we uploaded a template then this would be defined
             // Reading the template text from the server filesystem
+            // Todo make a database code?
             templateName = interaction.options.getString("template_name");
             const guildId = interaction.guildId;
             const templateFP = path.join(
@@ -79,41 +80,48 @@ module.exports = {
             }
             templateText = fs.readFileSync(templateFP, 'utf8');
         }
-            /* Parsing the file */
+
+        /* Parsing the file */
+        const templateLines = templateText.split("\n").map(line => line.split(','));
         const components = [];
-            templateText.split("\n").slice(1).forEach((line) => {
-                const templateLines = templateText.split("\n").map(line => line.split(','));
-                const multiselect = line[0];
-                const category = line[1];
+        let allRolesExist = true;
+        templateLines.slice(1).forEach((line) => {
                 const options = line.slice(2);
+                const maxSelected = line[0] === "t" ? options.length : 1;
+                const category = line[1];
+
+                // Ensuring the roles in the template actually exist
+                const roles = options.map((s) => { // S is a string, hopefully representing a value role name/id
+                  const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
+                  if (!role) {
+                      allRolesExist = false;
+                      interaction.editReply({
+                          content: `${interaction.reply.content}\n The role ${role.name} in the category ${category}`,
+                      })
+                  }
+                  return role;
+                })
+                if (!allRolesExist) {return;}
                 const row = new ActionRowBuilder();
 
                 row.addComponents(
                     new StringSelectMenuBuilder()
-                        .setCustomId(uuidv4())
-                        .setOptions(options.map(role => new StringSelectMenuOptionBuilder()
-                            .setLabel(role)
-                            .setValue(role)
+                        .setOptions(roles.map(role => new StringSelectMenuOptionBuilder()
+                            .setLabel(role.name)
+                            .setValue(role.id)
                         ))
-                )
-
-                row.addComponents(
-                    new StringSelectMenuBuilder()
+                        .setMaxValues(maxSelected)
+                        .setPlaceholder(category)
                         .setCustomId(uuidv4())
-                        .setOptions(options.map(role => new StringSelectMenuOptionBuilder()
-                            .setLabel(role)
-                            .setValue(role)
-                        ))
                 )
-                }
-            )
+                components.push(row);
+            }
+        )
 
-            interaction.channel.send({
-                content: "hi",
-                components: [
-                    row.toJSON()
-                ]
+        interaction.channel.send({
+            content: "Choose roles below.",
+            components: components,
 
-            })
+        })
     }
 }
