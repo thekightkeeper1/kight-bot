@@ -1,11 +1,12 @@
 require('dotenv').config();
 const fs = require('fs');
+const roleDropdown = require("./channel_utils/role_drop_downs")
 const path = require('path');
 const {
     Client,
     Collection,
     IntentsBitField,
-    Events
+    Events, MessageFlags
 } = require('discord.js');
 
 const {RoleButtons} = require('./channel_utils/role_buttons');
@@ -81,7 +82,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
 })
 
 // Handling select menus.
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isStringSelectMenu()) return;
+    roleDropdown.execute(interaction)
 
+})
+
+
+// toggles roles that do not have admin permissions (to prevent accidental exploitation)
+async function toggleRole(roleId, userId) {
+
+}
 
 client.login(process.env.DISCORD_TOKEN);
 
