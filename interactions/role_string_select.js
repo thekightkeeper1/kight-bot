@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags} = require ('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, Message} = require ('discord.js');
 
 
 
@@ -7,16 +7,15 @@ module.exports = {
         // The user must exist
         // the role must exist
         // the role must not give admin permissions
-        await interaction.deferReply()
-        let role = interaction.guild.roles.cache.has(interaction.valueOf())
+        await interaction.deferReply({flags: MessageFlags.Ephemeral})
+        let role = interaction.guild.roles.cache.find(r => r.id === interaction.values[0])
 
-        // const role = interaction.guild.roles.cache.get(interaction.valueOf()); // valueOf() expected to be a roleid
         if (!role) {
             console.log(role);
             interaction.editReply({
                 content: "I couldn't find any role. Maybe you clicked on an outdated interaction menu.",
             })
-            console.log(interaction.valueOf())
+            console.log(interaction.values[0])
         } else {
             const member = await interaction.guild.members.fetch(interaction.member.id);
             const hasRole = member.roles.cache.has(role.id);

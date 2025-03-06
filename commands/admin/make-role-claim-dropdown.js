@@ -9,6 +9,7 @@ const {getTextAttachment} = require('../../attachments.js');
 const fs = require("node:fs");
 const path = require("node:path");
 const {v4: uuidv4} = require('uuid');
+const {parse} = require("csv");
 
 
 module.exports = {
@@ -25,19 +26,22 @@ module.exports = {
                 .setName("template_file")
                 .setDescription("Upload and save a new template, using it to generate the dropdowns.")
         ),
-
     execute: async (interaction) => {
 
         await interaction.deferReply({
             flags: MessageFlags.Ephemeral
         });
-        let templateName = "";
-        let templateText;
 
+        // Seeing if sent us a new template or if we use an existing
+        let templateName = "";
+        let categories;
+        let components;
+
+        // In this case we use the file they uploaded, parse it, then save it.
         if (interaction.options.getAttachment("template_file")) {  //todo ensure we didnt specify both template_file and template_name
             // Fetch the file
             const url = interaction.options.getAttachment("template_file").url;
-            templateText = await getTextAttachment(url);
+            const templateText = await getTextAttachment(url);
 
             /* Saving the file */
             // First ensuring the folder to save to exists
@@ -46,11 +50,12 @@ module.exports = {
             if (!fs.existsSync(templateFolder)) {  //todo if it doesnt exist maybe we should make it?
                 console.log("The template folder did not exist");
                 interaction.editReply({
-                    content: "There was an error",
+                    content: "Error: Template folder does not exist",
                 })
+                console.error("Template folder did not exist")
             }
 
-
+            // Getting the name of the template from the uploaded attachment
             templateName = templateText.split('\n')[0] + '.txt';
             const templateFP = path.join(process.cwd(), templateFolder, templateName);
             fs.writeFileSync(templateFP, templateText, 'utf8');
@@ -60,10 +65,12 @@ module.exports = {
             * multiselect_t/f,category2,opt1,opt2
             * */
         }
+
         /* Loading the template file*/
-        if (!templateText) { // If we uploaded a template then this would be defined
+        if (!components) { // If we uploaded a template then this would be defined
             // Reading the template text from the server filesystem
             // Todo make a database code?
+            // Loading the file
             templateName = interaction.options.getString("template_name");
             const guildId = interaction.guildId;
             const templateFP = path.join(
@@ -72,51 +79,22 @@ module.exports = {
                 guildId,
                 'make-role-claim-dropdown',
                 "templates",
-                templateName + ".txt"
+                templateName + ".csv"
             )
+
             if (!fs.existsSync(templateFP)) {
-                interaction.editReply("There was an error");
+                interaction.editReply("I didn't find a template with that name.");
                 console.log("There was no template file.");
             }
-            templateText = fs.readFileSync(templateFP, 'utf8');
+
+            // Parsing the csv
+            const templateText = fs.readFileSync(templateFP, 'utf8');
+            const categories = parseCSV(templateText, interaction);
+
+            components = categories.map()
+
         }
 
-        /* Parsing the file */
-        const templateLines = templateText.split("\n").map(line => line.split(','));
-        const components = [];
-        let allRolesExist = true;
-        templateLines.slice(1).forEach((line) => {
-                const options = line.slice(2);
-                const maxSelected = line[0] === "t" ? options.length : 1;
-                const category = line[1];
-
-                // Ensuring the roles in the template actually exist
-                const roles = options.map((s) => { // S is a string, hopefully representing a value role name/id
-                  const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
-                  if (!role) {
-                      allRolesExist = false;
-                      interaction.editReply({
-                          content: `${interaction.reply.content}\n The role ${role.name} in the category ${category}`,
-                      })
-                  }
-                  return role;
-                })
-                if (!allRolesExist) {return;}
-                const row = new ActionRowBuilder();
-
-                row.addComponents(
-                    new StringSelectMenuBuilder()
-                        .setOptions(roles.map(role => new StringSelectMenuOptionBuilder()
-                            .setLabel(role.name)
-                            .setValue(role.id)
-                        ))
-                        .setMaxValues(maxSelected)
-                        .setPlaceholder(category)
-                        .setCustomId(uuidv4())
-                )
-                components.push(row);
-            }
-        )
 
         interaction.channel.send({
             content: "Choose roles below.",
@@ -125,3 +103,44 @@ module.exports = {
         })
     }
 }
+
+
+function parseCSV(csvString, interaction) {
+    let csvRows = csvString.split('\n');
+    csvRows = csvRows.map(s => s.trim().split(','))
+    csvRows = csvRows.slice(1)
+
+    let allRolesExist = true;
+    const categories = []
+    // Object mirroring a string select menu
+    csvRows.forEach(record => {
+        if (record.length <= 1) return;
+        categories.push({
+            category: record[2],
+            minValues: record[0],
+            maxValues: record[1],
+            options: record.slice(3).map((s) => {
+                // Gets the role ids and outputs errors to the interaction
+                const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
+                if (!role) {
+                    allRolesExist = false;
+                    interaction.editReply({
+                        content: `${interaction.reply.content}\n The role ${role.name} in the category ${record[2]}`,
+                    })
+                }
+                return role;
+                }
+            )
+        })
+    })
+    if (!allRolesExist) {
+        return [];
+    }
+    return categories;
+}
+
+function templateToActionRows() {
+
+}
+
+

@@ -1,6 +1,6 @@
 require('dotenv').config();
 const fs = require('fs');
-const roleDropdown = require("./channel_utils/role_drop_downs")
+const roleDropdown = require("./interactions/role_string_select")
 const path = require('path');
 const {
     Client,
@@ -8,8 +8,6 @@ const {
     IntentsBitField,
     Events, MessageFlags
 } = require('discord.js');
-
-const {RoleButtons} = require('./channel_utils/role_buttons');
 
 const client = new Client({
     intents: [
