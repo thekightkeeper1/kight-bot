@@ -83,7 +83,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isStringSelectMenu()) return;
     roleDropdown.execute(interaction)
-
 })
 
 

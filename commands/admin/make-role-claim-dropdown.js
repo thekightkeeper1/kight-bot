@@ -3,14 +3,12 @@ const {
     MessageFlags,
     ActionRowBuilder,
     StringSelectMenuBuilder,
-    StringSelectMenuOptionBuilder,
+    StringSelectMenuOptionBuilder, SelectMenuOptionBuilder,
 } = require('discord.js')
 const {getTextAttachment} = require('../../attachments.js');
 const fs = require("node:fs");
 const path = require("node:path");
 const {v4: uuidv4} = require('uuid');
-const {parse} = require("csv");
-
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -91,10 +89,19 @@ module.exports = {
             const templateText = fs.readFileSync(templateFP, 'utf8');
             const categories = parseCSV(templateText, interaction);
 
-            components = categories.map()
+            components = categories.map(e => new ActionRowBuilder().addComponents([
+                new StringSelectMenuBuilder()
+                    .setCustomId(uuidv4())
+                    .setPlaceholder(e.category)
+                    .setMinValues(Number(e.minValues))
+                    .setMaxValues(Number(e.maxValues))
+                    .setOptions(e.options.map(role => new SelectMenuOptionBuilder()
+                        .setValue(role.id)
+                        .setLabel(role.name)
+                    ))
+            ]))
 
         }
-
 
         interaction.channel.send({
             content: "Choose roles below.",
@@ -120,15 +127,15 @@ function parseCSV(csvString, interaction) {
             minValues: record[0],
             maxValues: record[1],
             options: record.slice(3).map((s) => {
-                // Gets the role ids and outputs errors to the interaction
-                const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
-                if (!role) {
-                    allRolesExist = false;
-                    interaction.editReply({
-                        content: `${interaction.reply.content}\n The role ${role.name} in the category ${record[2]}`,
-                    })
-                }
-                return role;
+                    // Gets the role ids and outputs errors to the interaction
+                    const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
+                    if (!role) {
+                        allRolesExist = false;
+                        interaction.editReply({
+                            content: `${interaction.reply.content}\n The role ${role.name} in the category ${record[2]}`,
+                        })
+                    }
+                    return role;
                 }
             )
         })
