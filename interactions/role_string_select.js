@@ -1,48 +1,47 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, Message} = require ('discord.js');
-
+const {ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, Message} = require('discord.js');
 
 
 module.exports = {
     execute: async (interaction) => {
-        // The user must exist
-        // the role must exist
-        // the role must not give admin permissions
+
+        /*
+        *
+        * To verify:
+        * role exist
+        * todo role not admin role
+        * todo bot has permisions
+        *
+        * */
+
         await interaction.deferReply({flags: MessageFlags.Ephemeral})
+
         // Getting all the unselected roles to remove them from the user.
-        getUnselectedRoles(interaction);
-
-
-        let role = interaction.guild.roles.cache.find(r => r.id === interaction.values[0])
-
-        if (!role) {
-            console.log(role);
-            interaction.editReply({
-                content: "I couldn't find any role. Maybe you clicked on an outdated interaction menu.",
-            })
-            console.log(interaction.values[0])
-        } else {
-            const member = await interaction.guild.members.fetch(interaction.member.id);
-            const hasRole = member.roles.cache.has(role.id);
-
+        const unselectedRoleOptions = getUnselectedRoles(interaction);
+        const member = await interaction.guild.members.fetch(interaction.member.id);
+        const rolesModified = [];
+        for (let role of unselectedRoleOptions) {
+            const hasRole = member.roles.cache.has(role.value);
             if (hasRole) {
-                await interaction.member.roles.remove(role);
-                interaction.editReply({
-                    content: `${role.name} removed.`,
-                })
-            } else {
-                await interaction.member.roles.add(role);
-                interaction.editReply({
-                    content: `${role.name} added.`,
-                })
+                rolesModified.push(interaction.member.roles.remove(role.value));
             }
         }
+
+        // And then adding their new roles
+        for (let roleId of interaction.values) {
+            const hasRole = member.roles.cache.has(roleId)
+            if (hasRole) continue;
+            rolesModifiede.push(interaction.member.roles.add(roleId));
+        }
+
+        Promise.all(rolesModified).then(() => {
+            interaction.reply("Successfully updated roles.");
+        })
 
     }
 }
 
 function getUnselectedRoles(interaction) {
-    let selectMenu = interaction.message.components.find(actionRow => actionRow.components[0].customId === interaction.customId);
-    let roles = selectMenu.options.map(role => role);
-
-    return roles
+    const selectedRoles = interaction.values;
+    const actionRow = interaction.message.components.find(actionRow => actionRow.components[0].customId === interaction.customId);
+    return actionRow.components[0].options.filter(option => !selectedRoles.includes(option.value));
 }
