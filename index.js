@@ -86,11 +86,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 })
 
 
-// toggles roles that do not have admin permissions (to prevent accidental exploitation)
-async function toggleRole(roleId, userId) {
-
-}
-
 client.login(process.env.DISCORD_TOKEN);
 
 
