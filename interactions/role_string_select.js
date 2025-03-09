@@ -1,47 +1,43 @@
-const {ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, Message} = require('discord.js');
-
+const { MessageFlags } = require('discord.js');
 
 module.exports = {
     execute: async (interaction) => {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-        /*
-        *
-        * To verify:
-        * role exist
-        * todo role not admin role
-        * todo bot has permisions
-        *
-        * */
-
-        await interaction.deferReply({flags: MessageFlags.Ephemeral})
-
-        // Getting all the unselected roles to remove them from the user.
-        const unselectedRoleOptions = getUnselectedRoles(interaction);
-        const member = await interaction.guild.members.fetch(interaction.member.id);
-        const rolesModified = [];
-        for (let role of unselectedRoleOptions) {
-            const hasRole = member.roles.cache.has(role.value);
-            if (hasRole) {
-                rolesModified.push(interaction.member.roles.remove(role.value));
-            }
+        const member = await fetchMember(interaction);
+        if (!member) {
+            return interaction.followUp({ content: "Failed to update roles due to an error fetching the member.", ephemeral: true });
         }
 
-        // And then adding their new roles
-        for (let roleId of interaction.values) {
-            const hasRole = member.roles.cache.has(roleId)
-            if (hasRole) continue;
-            rolesModifiede.push(interaction.member.roles.add(roleId));
-        }
+        const unselectedRoles = getUnselectedRoles(interaction);
+        await removeRoles(member, unselectedRoles);
+        await addRoles(interaction, member);
 
-        Promise.all(rolesModified).then(() => {
-            interaction.reply("Successfully updated roles.");
-        })
+        interaction.followUp({ content: "Successfully updated roles.", ephemeral: true });
+    }
+};
 
+async function fetchMember(interaction) {
+    try {
+        return await interaction.guild.members.fetch(interaction.member.id);
+    } catch (err) {
+        console.error("Failed to fetch member:", err);
+        return null;
     }
 }
 
 function getUnselectedRoles(interaction) {
-    const selectedRoles = interaction.values;
-    const actionRow = interaction.message.components.find(actionRow => actionRow.components[0].customId === interaction.customId);
-    return actionRow.components[0].options.filter(option => !selectedRoles.includes(option.value));
+    const selectedRoleIds = interaction.values; // Collect all role IDs that were selected by the user
+    const actionRow = interaction.message.components.find(row => row.components[0].customId === interaction.customId);
+    return actionRow.components[0].options.filter(option => !selectedRoleIds.includes(option.value)); // Filter out roles that were not selected by the user
+}
+
+async function removeRoles(member, roles) {
+    const rolePromises = roles.map(role => member.roles.remove(role.value));
+    await Promise.all(rolePromises);
+}
+
+async function addRoles(interaction, member) {
+    const rolePromises = interaction.values.filter(roleId => !member.roles.cache.has(roleId)).map(roleId => member.roles.add(roleId));
+    await Promise.all(rolePromises);
 }
