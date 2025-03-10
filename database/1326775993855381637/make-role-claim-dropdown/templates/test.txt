@@ -1,3 +1,0 @@
-test
-f,color,teal,green
-f,admin,pink
