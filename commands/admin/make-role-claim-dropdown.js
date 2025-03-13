@@ -11,6 +11,13 @@ const path = require("node:path");
 const {v4: uuidv4} = require('uuid');
 
 module.exports = {
+    help:
+        "Upload a .csv and set a name for it.\n" +
+        "If you want to send the same template w/o changes, no need to send the file again,\n" +
+        "just specify the name of the template you want to recycle.\n" +
+        "TODO: implement list option to list templates currently saved.\n" +
+        "Use the csv below to make your own template, then upload it. (If it asks, use UTF8 encoding)",
+
     data: new SlashCommandBuilder()
         .setName('make-role-claim-dropdown')
         .setDescription("Generate a dropdown menu full of roles for a user to choose from.")
@@ -46,7 +53,6 @@ module.exports = {
         const templateSaveDir = path.join(templateFolder, templateName + ".json");
 
         // Seeing if sent us a new template or if we use an existing
-        let components;
         if (interaction.options.getAttachment("template_file")) {
             // In this case we use the file they uploaded, parse it, then save it.
             // Fetch the file
@@ -55,47 +61,39 @@ module.exports = {
 
 
             // parsing the template
-            components = parseCSV(templateText, interaction)
+            const components = parseCSV(templateText, interaction)
             if (!components) {
-                interaction.followUp({
-                    content: "I ran into an issue parsing the csv.",
-                    flags: MessageFlags.Ephemeral
-                });
+                // interaction.editReply({
+                //     content: "I ran into an issue parsing the csv.",
+                //     // flags: MessageFlags.Ephemeral
+                // });
                 return;
             }
 
-            fs.writeFile(templateSaveDir, JSON.stringify(components), (err) => {
-                if (!err) return;
-                console.error(err);
-                interaction.followUp({
-                    content: "There was an issue saving the file to my database. Please contact the developer.",
-                    flags: MessageFlags.Ephemeral
-                })
-            })
-            return;
+            fs.writeFileSync(templateSaveDir, JSON.stringify(components), (err) => {
+                if (err) {
+                    console.error(err);
+                    interaction.followUp({
+                        content: "There was an issue saving the file to my database. Please contact the developer.",
+                        flags: MessageFlags.Ephemeral
+                    })
+                    throw Error("Couldn't save to database.");
+                }
+            });
         }
 
         /* Loading the template file*/
-        if (!components) { // If we uploaded a template then this would be defined
-
-            // Loading template
-            if (!fs.existsSync(templateSaveDir)) {
-                interaction.editReply("I didn't find a template with that name.");
-                console.log(`There was no template file ${templateName}.`);
-            }
-
-            // Parsing the csv
-            components = JSON.parse(fs.readFileSync(templateSaveDir, 'utf8'));
+        // Loading template
+        if (!fs.existsSync(templateSaveDir)) {
+            interaction.editReply("I didn't find a template with that name.");
+            console.log(`There was no template file ${templateName}.`);
         }
 
-        actionRow[0] = (new StringSelectMenuBuilder()
-                .setCustomId("replace_this_when_executing")
-                .setPlaceholder(record[columns.placeholder])
-                .setMaxValues(+record[columns.maxValues])
-                .setMinValues(+record[columns.minValues])
-        )
+        // Parsing the csv
+        let components = JSON.parse(fs.readFileSync(templateSaveDir, 'utf8'));
 
-        return;
+
+        // return;
         // Generating uuid for the custom id
         components = components.map(actionRow => new ActionRowBuilder()
             .addComponents([
@@ -103,10 +101,14 @@ module.exports = {
                     .setCustomId(uuidv4())
             ])
         )
+        components.map(actionRow => actionRow.components[0].toJSON())
 
         interaction.channel.send({
             content: "Choose roles below.",
             components: components,
+        })
+        interaction.editReply({
+            content: "Done",
         })
     }
 }
@@ -117,16 +119,24 @@ function parseCSV(csvString, interaction) {
     csvRows = csvRows.map(s => s.trim().split(','))
 
     // Gets indices of column
-    const columns = {
-        maxValues: "MAX_OPT",
-        minValues: "MIN_OPT",
-        placeholder: "CAT_NAME",
+    const HEADERS = {
+        maxValues: "MAX_OPTIONS_SELECTED",
+        minValues: "MIN_OPTIONS_SELECTED",
+        placeholder: "CATEGORY_PLACEHOLDER_TEXT",
         roles: "ROLES"
     };
 
-    Object.keys(columns).forEach(key => {
-        columns[key] = csvRows[0].indexOf(columns[key]);
-    });
+    const columns = {};
+    Object.keys(HEADERS).forEach(key => {
+        columns[key] = csvRows[0].indexOf(HEADERS[key]);
+        if (columns[key] === -1) {
+            interaction.followUp({
+                    content: `The csv didn't contain the expected column headers: ${Object.values(HEADERS)}`,
+                    flags: MessageFlags.Ephemeral
+                }
+            )
+            throw Error()
+        }});
     csvRows = csvRows.slice(1);
 
 
@@ -137,22 +147,22 @@ function parseCSV(csvString, interaction) {
         if ("" === record[0]) return;
         if (record.length < columns.roles + 1) {
             interaction.followUp({
-                content: "This row didn't have at least" + columns.roles + " items in it:" +
+                content: "This row didn't have at least " + columns.roles+1 + " items in it:" +
                     "\n```js\n" + record + "\n```"
-
             })
+            throw Error("Incorrect number elements in csv row.\n" + record)
         }
         components.push(new ActionRowBuilder().addComponents([
             new StringSelectMenuBuilder()
                 .setCustomId("replace_this_when_executing")
                 .setPlaceholder(record[columns.placeholder])
-                .setMaxValues(+record[columns.maxValues])
-                .setMinValues(+record[columns.minValues])
+                .setMaxValues(Number(record[columns.maxValues]))
+                .setMinValues(Number(record[columns.minValues]))
                 .setOptions(record.slice(columns.roles).map(s => {
                     if (s === "") return;
                     const role = interaction.guild.roles.cache.find(r => s === r.name || s === r.id);  // r is a role
                     if (!role) {
-                        errors += `category: ${record[2]} role: ${s}`;
+                        errors += "\n`category:` " + record[2] + "`role:` " + s;
                         allRolesExist = false;
                         return;
                     }
@@ -163,8 +173,13 @@ function parseCSV(csvString, interaction) {
                 ).filter(e => e != null))
         ]))
     })
-    if (!allRolesExist)
+    if (!allRolesExist) {
+        interaction.followUp({
+            content: errors,
+            flags: MessageFlags.Ephemeral
+        })
         return null;
+    }
     if (!components.length) {
         interaction.followUp({
             content: "It looked like there was no CSV data" +
